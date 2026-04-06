@@ -61,7 +61,7 @@ jobs:
         if-no-files-found: error
         retention-days: 7
 
-  # ============================================
+    # ============================================
   # СТАДИЯ 2: TEST - Запуск тестов
   # ============================================
   test:
@@ -87,29 +87,95 @@ jobs:
     - name: Make binary executable
       run: chmod +x fibonacci
     
-    - name: Build and run tests
+    - name: Build and run unit tests
       run: |
         make test
       continue-on-error: false
     
-    - name: Test with various inputs
+    - name: Test with command line arguments (no interactive input)
       run: |
-        echo "=== Testing with valid inputs ==="
-        echo "0" | ./fibonacci | grep -q "Fibonacci(0) = 0" && echo "Test 0 passed"
-        echo "1" | ./fibonacci | grep -q "Fibonacci(1) = 1" && echo "Test 1 passed"
-        echo "10" | ./fibonacci | grep -q "Fibonacci(10) = 55" && echo "Test 10 passed"
-        echo "20" | ./fibonacci | grep -q "Fibonacci(20) = 6765" && echo "Test 20 passed"
+        echo "=== Testing with command line arguments ==="
         
+        # Тест 1: n=0
+        RESULT=$(./fibonacci 0 | tail -1 | grep -oE '[0-9]+' | head -1)
+        if [ "$RESULT" == "0" ]; then
+          echo "n=0 passed (result: $RESULT)"
+        else
+          echo "n=0 failed (result: $RESULT)"
+          exit 1
+        fi
+        
+        # Тест 2: n=1
+        RESULT=$(./fibonacci 1 | tail -1 | grep -oE '[0-9]+' | head -1)
+        if [ "$RESULT" == "1" ]; then
+          echo "n=1 passed (result: $RESULT)"
+        else
+          echo "n=1 failed (result: $RESULT)"
+          exit 1
+        fi
+        
+        # Тест 3: n=10
+        RESULT=$(./fibonacci 10 | tail -1 | grep -oE '[0-9]+' | head -1)
+        if [ "$RESULT" == "55" ]; then
+          echo "n=10 passed (result: $RESULT)"
+        else
+          echo "n=10 failed (result: $RESULT)"
+          exit 1
+        fi
+        
+        # Тест 4: n=20
+        RESULT=$(./fibonacci 20 | tail -1 | grep -oE '[0-9]+' | head -1)
+        if [ "$RESULT" == "6765" ]; then
+          echo "n=20 passed (result: $RESULT)"
+        else
+          echo "n=20 failed (result: $RESULT)"
+          exit 1
+        fi
+        
+        # Тест 5: n=50
+        RESULT=$(./fibonacci 50 | tail -1 | grep -oE '[0-9]+' | head -1)
+        if [ "$RESULT" == "12586269025" ]; then
+          echo "n=50 passed (result: $RESULT)"
+        else
+          echo "n=50 failed (result: $RESULT)"
+          exit 1
+        fi
+    
+    - name: Test with invalid inputs
+      run: |
         echo ""
         echo "=== Testing with invalid inputs ==="
-        echo "abc" | ./fibonacci | grep -q "Ошибка" && echo "Test invalid string passed"
-        echo "-5" | ./fibonacci | grep -q "Ошибка" && echo "Test negative passed"
-        echo "100" | ./fibonacci | grep -q "Ошибка" && echo "Test too large passed"
+        
+        # Тест: неверная строка
+        if ./fibonacci abc 2>&1 | grep -q "Ошибка"; then
+          echo "invalid string passed"
+        else
+          echo "invalid string failed"
+          exit 1
+        fi
+        
+        # Тест: отрицательное число
+        if ./fibonacci -5 2>&1 | grep -q "Ошибка"; then
+          echo "negative number passed"
+        else
+          echo "negative number failed"
+          exit 1
+        fi
+        
+        # Тест: слишком большое число
+        if ./fibonacci 100 2>&1 | grep -q "Ошибка"; then
+          echo "too large number passed"
+        else
+          echo "too large number failed"
+          exit 1
+        fi
     
-    - name: Test performance
+    - name: Performance test
       run: |
+        echo ""
         echo "=== Performance test ==="
-        time echo "45" | ./fibonacci > /dev/null
+        time ./fibonacci 45 > /dev/null
+        echo "Performance test completed"
 
   # ============================================
   # СТАДИЯ 3: PACKAGE - Сборка Docker образа
