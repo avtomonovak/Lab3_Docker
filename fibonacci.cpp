@@ -48,20 +48,41 @@ public:
     }
 };
 
-int main() {
-    std::cout << "========================================" << std::endl;
-    std::cout << "  Программа вычисления чисел Фибоначчи" << std::endl;
-    std::cout << "  Вариант 1: Последовательность Фибоначчи" << std::endl;
-    std::cout << "  Собрано в Docker контейнере" << std::endl;
-    std::cout << "========================================" << std::endl;
-    std::cout << std::endl;
-    
-    std::string input;
+/**
+ * Вычисляет число Фибоначчи и выводит результат
+ * Возвращает 0 при успехе, 1 при ошибке
+ */
+int runWithArgs(int argc, char* argv[]) {
     int n;
+    
+    // Если передан аргумент командной строки - используем его
+    if (argc > 1) {
+        std::string arg = argv[1];
+        if (FibonacciCalculator::isValidNumber(arg, n)) {
+            if (n >= 0 && n <= 50) {
+                long long result = FibonacciCalculator::calculate(n);
+                std::cout << result << std::endl;
+                return 0;
+            } else {
+                std::cerr << "Ошибка: Число должно быть в диапазоне от 0 до 50!" << std::endl;
+                return 1;
+            }
+        } else {
+            std::cerr << "Ошибка: Введите целое неотрицательное число!" << std::endl;
+            return 1;
+        }
+    }
+    
+    // Интерактивный режим (для пользователя)
+    std::string input;
     
     while (true) {
         std::cout << "Введите целое неотрицательное число n (0-50): ";
-        std::getline(std::cin, input);
+        
+        if (!std::getline(std::cin, input)) {
+            // Если достигнут конец ввода (например, при перенаправлении)
+            break;
+        }
         
         if (input.empty()) {
             std::cout << "Ошибка: Ввод не может быть пустым!" << std::endl;
@@ -95,9 +116,15 @@ int main() {
         return 1;
     }
     
-    std::cout << std::endl;
-    std::cout << "Программа завершена. Нажмите Enter для выхода...";
-    std::cin.get();
-    
     return 0;
+}
+
+int main(int argc, char* argv[]) {
+    std::cout << "========================================" << std::endl;
+    std::cout << "  Программа вычисления чисел Фибоначчи" << std::endl;
+    std::cout << "  Вариант 1: Последовательность Фибоначчи" << std::endl;
+    std::cout << "========================================" << std::endl;
+    std::cout << std::endl;
+    
+    return runWithArgs(argc, argv);
 }
