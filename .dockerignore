@@ -1,0 +1,8 @@
+.git/
+.github/
+*.md
+test_fibonacci.cpp
+test_fibonacci
+*.o
+*.swp
+.DS_Store
