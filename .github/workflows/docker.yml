@@ -1,0 +1,330 @@
+name: Docker CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - '**.cpp'
+      - 'makefile'
+      - 'Dockerfile'
+      - '.github/workflows/docker.yml'
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: avtomonovak/Lab3_Docker
+  DOCKER_BUILDKIT: 1
+
+jobs:
+  # ============================================
+  # СТАДИЯ 1: BUILD - Сборка программы
+  # ============================================
+  build:
+    name: Build
+    runs-on: self-hosted
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Install build dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential g++ make
+    
+    - name: Verify compiler
+      run: |
+        g++ --version
+        make --version
+    
+    - name: Clean previous builds
+      run: make clean
+    
+    - name: Build application
+      run: |
+        make
+        echo "Build completed successfully"
+    
+    - name: Verify binary
+      run: |
+        ls -la fibonacci
+        file fibonacci
+        ./fibonacci --help || true
+    
+    - name: Upload build artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: fibonacci-binary
+        path: fibonacci
+        if-no-files-found: error
+        retention-days: 7
+
+  # ============================================
+  # СТАДИЯ 2: TEST - Запуск тестов
+  # ============================================
+  test:
+    name: Test
+    runs-on: self-hosted
+    needs: build
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Install build dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential g++ make
+    
+    - name: Download build artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: fibonacci-binary
+        path: ./
+    
+    - name: Make binary executable
+      run: chmod +x fibonacci
+    
+    - name: Build and run tests
+      run: |
+        make test
+      continue-on-error: false
+    
+    - name: Test with various inputs
+      run: |
+        echo "=== Testing with valid inputs ==="
+        echo "0" | ./fibonacci | grep -q "Fibonacci(0) = 0" && echo "Test 0 passed"
+        echo "1" | ./fibonacci | grep -q "Fibonacci(1) = 1" && echo "Test 1 passed"
+        echo "10" | ./fibonacci | grep -q "Fibonacci(10) = 55" && echo "Test 10 passed"
+        echo "20" | ./fibonacci | grep -q "Fibonacci(20) = 6765" && echo "Test 20 passed"
+        
+        echo ""
+        echo "=== Testing with invalid inputs ==="
+        echo "abc" | ./fibonacci | grep -q "Ошибка" && echo "Test invalid string passed"
+        echo "-5" | ./fibonacci | grep -q "Ошибка" && echo "Test negative passed"
+        echo "100" | ./fibonacci | grep -q "Ошибка" && echo "Test too large passed"
+    
+    - name: Test performance
+      run: |
+        echo "=== Performance test ==="
+        time echo "45" | ./fibonacci > /dev/null
+
+  # ============================================
+  # СТАДИЯ 3: PACKAGE - Сборка Docker образа
+  # ============================================
+  package:
+    name: Package
+    runs-on: self-hosted
+    needs: test
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Log in to GitHub Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Extract metadata for Docker
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=raw,value=latest
+          type=raw,value=${{ github.sha }}
+          type=sha,format=short
+          type=ref,event=branch
+        labels: |
+          org.opencontainers.image.title=Fibonacci Calculator
+          org.opencontainers.image.description=Fibonacci calculator for Lab3
+          org.opencontainers.image.version=1.0.0
+          org.opencontainers.image.source=https://github.com/${{ github.repository }}
+    
+    - name: Build Docker image (without push)
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: false
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        load: true
+    
+    - name: Test Docker image
+      run: |
+        echo "=== Testing Docker image ==="
+        IMAGE_TAG="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+        
+        echo "Test 1: Check image exists"
+        docker images | grep "avtomonovak/ldb3_docker" || docker images | grep "Ldb3_Docker"
+        
+        echo "Test 2: Run with valid input"
+        echo "10" | docker run -i --rm $IMAGE_TAG | grep -q "55" && echo "Test passed"
+        
+        echo "Test 3: Run with invalid input"
+        echo "abc" | docker run -i --rm $IMAGE_TAG | grep -q "Ошибка" && echo "Test passed"
+        
+        echo "Test 4: Check image size"
+        docker images $IMAGE_TAG --format "Size: {{.Size}}"
+    
+    - name: Save Docker image as artifact
+      run: |
+        IMAGE_TAG="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+        docker save $IMAGE_TAG -o fibonacci-image.tar
+        gzip -9 fibonacci-image.tar
+        ls -lh fibonacci-image.tar.gz
+    
+    - name: Upload Docker image artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: fibonacci-docker-image
+        path: fibonacci-image.tar.gz
+        if-no-files-found: error
+        retention-days: 7
+    
+    - name: Generate package info
+      run: |
+        cat > package-info.txt << EOF
+        ========================================
+        Docker Package Information
+        ========================================
+        Image Name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        Image Tag: ${{ github.sha }}
+        Build Date: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
+        Commit SHA: ${{ github.sha }}
+        Commit Message: ${{ github.event.head_commit.message }}
+        Repository: https://github.com/${{ github.repository }}
+        ========================================
+        EOF
+        cat package-info.txt
+    
+    - name: Upload package info
+      uses: actions/upload-artifact@v4
+      with:
+        name: package-info
+        path: package-info.txt
+        retention-days: 7
+
+  # ============================================
+  # СТАДИЯ 4: DEPLOY - Публикация в GHCR
+  # ============================================
+  deploy:
+    name: Deploy
+    runs-on: self-hosted
+    needs: package
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Log in to GitHub Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Extract metadata for Docker
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=raw,value=latest
+          type=raw,value=${{ github.sha }}
+          type=sha,format=short
+          type=ref,event=branch
+    
+    - name: Build and push Docker image to GHCR
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+    
+    - name: Verify image in registry
+      run: |
+        echo "=== Verifying images in registry ==="
+        echo "Latest: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
+        echo "Commit: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+        
+        # Проверяем, что образ существует
+        docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+        docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+        
+        echo "Images successfully pushed to GHCR"
+    
+    - name: Test deployed image
+      run: |
+        echo "=== Testing deployed image from GHCR ==="
+        echo "Testing with input 15..."
+        echo "15" | docker run -i --rm ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest | grep -q "610"
+        echo "Deployed image works correctly"
+        
+        echo ""
+        echo "=== Testing deployed image with invalid input ==="
+        echo "abc" | docker run -i --rm ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest | grep -q "Ошибка"
+        echo "Error handling works correctly"
+    
+    - name: Show image information
+      run: |
+        echo ""
+        echo "=== Docker Image Information ==="
+        docker images | head -5
+        echo ""
+        echo "=== GHCR Push Complete ==="
+        echo "Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
+        echo "Size: $(docker images ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest --format '{{.Size}}')"
+    
+    - name: Create deployment summary
+      run: |
+        cat >> $GITHUB_STEP_SUMMARY << EOF
+        ## Deployment Successful!
+        
+        | Метка | Значение |
+        |-------|----------|
+        | **Image** | \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}\` |
+        | **Tag latest** | \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest\` |
+        | **Tag commit** | \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}\` |
+        | **Deploy time** | $(date -u +"%Y-%m-%d %H:%M:%S UTC") |
+        | **Commit** | [${{ github.sha }}](https://github.com/${{ github.repository }}/commit/${{ github.sha }}) |
+        
+        ### Как использовать образ:
+        \`\`\`bash
+        # Скачать образ
+        docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+        
+        # Запустить в интерактивном режиме
+        docker run -it --rm ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+        
+        # Запустить с передачей входных данных
+        echo "10" | docker run -i --rm ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+        \`\`\`
+        
+        ### Pulls count:
+        \`\`\`bash
+        docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+        \`\`\`
+        EOF
