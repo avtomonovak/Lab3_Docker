@@ -7,8 +7,11 @@ LDFLAGS =
 TARGET = fibonacci
 TEST_TARGET = test_fibonacci
 
-# Цель по умолчанию - собираем ВСЕ!
-all: $(TARGET) $(TEST_TARGET)
+# Цель по умолчанию - собираем основную программу
+all: $(TARGET)
+
+# Сборка ВСЕХ файлов (для CI/CD)
+all-tests: $(TARGET) $(TEST_TARGET)
 
 # Сборка основной программы
 $(TARGET): fibonacci.cpp
@@ -58,11 +61,11 @@ clean:
 check:
 	@command -v $(CXX) >/dev/null 2>&1 || { echo "Ошибка: $(CXX) не установлен"; exit 1; }
 	@echo "Компилятор $(CXX) установлен"
-	@command -v docker >/dev/null 2>&1 && echo "Docker установлен" || echo "⚠ Docker не установлен"
+	@command -v docker >/dev/null 2>&1 && echo "Docker установлен" || echo "Docker не установлен"
 
-# Полная CI проверка
-ci: clean all test test-args
+# Полная CI проверка (собираем ВСЕ)
+ci: clean all-tests test test-args
 	@echo ""
 	@echo "CI проверка пройдена успешно!"
 
-.PHONY: all run test test-args clean check ci
+.PHONY: all all-tests run test test-args clean check ci
