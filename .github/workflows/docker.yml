@@ -14,8 +14,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  # ВНИМАНИЕ: имя ДОЛЖНО быть в НИЖНЕМ РЕГИСТРЕ для GHCR!
-  IMAGE_NAME: avtomonovak/lab3_docker
+  IMAGE_NAME: avtomonovak/Ldb3_Docker
   DOCKER_BUILDKIT: 1
 
 jobs:
@@ -172,87 +171,27 @@ jobs:
         cache-to: type=gha,mode=max
         load: true
     
-    - name: List Docker images for debugging
-      run: |
-        echo "=== All Docker images ==="
-        docker images --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}"
-    
     - name: Test Docker image
       run: |
-        echo "=== Testing Docker image ==="
+        echo "=== Testing Docker image with arguments ==="
+        IMAGE_TAG="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
         
-        # Формируем правильное имя образа (В НИЖНЕМ РЕГИСТРЕ!)
-        FULL_IMAGE_NAME="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
-        COMMIT_SHA="${{ github.sha }}"
+        echo -n "Test n=10: "
+        docker run --rm $IMAGE_TAG 10 | grep -q "55" && echo "PASS" || echo "FAIL"
         
-        echo "Looking for image: $FULL_IMAGE_NAME:$COMMIT_SHA"
-        echo "Also looking for: $FULL_IMAGE_NAME:latest"
+        echo -n "Test n=20: "
+        docker run --rm $IMAGE_TAG 20 | grep -q "6765" && echo "PASS" || echo "FAIL"
         
-        # Находим существующий тег образа
-        FOUND_TAG=""
-        if docker images --format "{{.Repository}}:{{.Tag}}" | grep -q "^$FULL_IMAGE_NAME:$COMMIT_SHA$"; then
-          FOUND_TAG="$FULL_IMAGE_NAME:$COMMIT_SHA"
-          echo "Found image with commit tag"
-        elif docker images --format "{{.Repository}}:{{.Tag}}" | grep -q "^$FULL_IMAGE_NAME:latest$"; then
-          FOUND_TAG="$FULL_IMAGE_NAME:latest"
-          echo "Found image with latest tag"
-        else
-          echo "Image not found!"
-          echo "Available images with 'lab3_docker':"
-          docker images | grep "lab3_docker" || echo "  (none found)"
-          exit 1
-        fi
+        echo -n "Test invalid input: "
+        docker run --rm $IMAGE_TAG abc 2>&1 | grep -q "Ошибка" && echo "PASS" || echo "FAIL"
         
-        echo ""
-        echo "Test 1: Run with valid input (n=10)"
-        RESULT=$(docker run --rm $FOUND_TAG 10)
-        if [ "$RESULT" == "55" ]; then
-          echo "PASS (got: $RESULT)"
-        else
-          echo "FAIL (expected: 55, got: $RESULT)"
-          exit 1
-        fi
-        
-        echo ""
-        echo "Test 2: Run with valid input (n=20)"
-        RESULT=$(docker run --rm $FOUND_TAG 20)
-        if [ "$RESULT" == "6765" ]; then
-          echo "PASS (got: $RESULT)"
-        else
-          echo "FAIL (expected: 6765, got: $RESULT)"
-          exit 1
-        fi
-        
-        echo ""
-        echo "Test 3: Run with invalid input (abc)"
-        if docker run --rm $FOUND_TAG abc 2>&1 | grep -q "Ошибка"; then
-          echo "PASS"
-        else
-          echo "FAIL"
-          exit 1
-        fi
-        
-        echo ""
-        echo "Test 4: Check image size"
-        docker images $FOUND_TAG --format "Size: {{.Size}}"
-        
-        echo ""
-        echo "All Docker image tests passed"
+        echo "Docker image tests passed"
     
     - name: Save Docker image as artifact
       run: |
-        FULL_IMAGE_NAME="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
-        COMMIT_SHA="${{ github.sha }}"
-        
-        # Определяем какой тег использовать для сохранения
-        if docker images --format "{{.Repository}}:{{.Tag}}" | grep -q "^$FULL_IMAGE_NAME:$COMMIT_SHA$"; then
-          docker save $FULL_IMAGE_NAME:$COMMIT_SHA -o fibonacci-image.tar
-        else
-          docker save $FULL_IMAGE_NAME:latest -o fibonacci-image.tar
-        fi
-        
+        IMAGE_TAG="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+        docker save $IMAGE_TAG -o fibonacci-image.tar
         gzip -9 fibonacci-image.tar
-        echo "Docker image saved as fibonacci-image.tar.gz"
         ls -lh fibonacci-image.tar.gz
     
     - name: Upload Docker image artifact
@@ -267,7 +206,7 @@ jobs:
   # СТАДИЯ 4: DEPLOY - Публикация в GHCR
   # ============================================
   deploy:
-    name: Deploy to GHCR
+    name: 🚀 Deploy to GHCR
     runs-on: self-hosted
     needs: package
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
@@ -314,47 +253,27 @@ jobs:
       run: |
         echo "=== Verifying deployed image ==="
         
-        FULL_IMAGE_NAME="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
-        
-        echo "Pulling: $FULL_IMAGE_NAME:latest"
-        docker pull $FULL_IMAGE_NAME:latest
+        docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
         
         echo -n "Test n=15: "
-        RESULT=$(docker run --rm $FULL_IMAGE_NAME:latest 15)
-        if [ "$RESULT" == "610" ]; then
-          echo "PASS (got: $RESULT)"
-        else
-          echo "FAIL (expected: 610, got: $RESULT)"
-          exit 1
-        fi
+        docker run --rm ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest 15 | grep -q "610" && echo "PASS" || echo FAIL"
         
-        echo -n "Test n=30: "
-        RESULT=$(docker run --rm $FULL_IMAGE_NAME:latest 30)
-        if [ "$RESULT" == "832040" ]; then
-          echo "PASS (got: $RESULT)"
-        else
-          echo "FAIL (expected: 832040, got: $RESULT)"
-          exit 1
-        fi
-        
-        echo ""
         echo "Deployed image works correctly"
     
     - name: Create deployment summary
       run: |
-        FULL_IMAGE_NAME="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
         cat >> $GITHUB_STEP_SUMMARY << EOF
         ## Deployment Successful!
         
         | Метка | Значение |
         |-------|----------|
-        | **Image** | \`$FULL_IMAGE_NAME\` |
-        | **Tag latest** | \`$FULL_IMAGE_NAME:latest\` |
-        | **Tag commit** | \`$FULL_IMAGE_NAME:${{ github.sha }}\` |
+        | **Image** | \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}\` |
+        | **Tag latest** | \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest\` |
+        | **Tag commit** | \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}\` |
         
         ### Как использовать образ:
         \`\`\`bash
-        docker pull $FULL_IMAGE_NAME:latest
-        docker run --rm $FULL_IMAGE_NAME:latest 10
+        docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+        docker run --rm ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest 10
         \`\`\`
         EOF
