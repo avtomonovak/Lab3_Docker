@@ -1,7 +1,7 @@
 #include <iostream>
 #include <cassert>
 #include <stdexcept>
-#include <cstdlib>
+#include <chrono>  // <-- ДОБАВИТЬ ЭТУ СТРОКУ!
 
 class FibonacciCalculator {
 public:
@@ -68,7 +68,7 @@ void test_too_large() {
 }
 
 void test_performance() {
-    std::cout << "Test 6: Performance (calculating 0-50)... ";
+    std::cout << "Test 6: Performance (0-50)... ";
     auto start = std::chrono::high_resolution_clock::now();
     for (int i = 0; i <= 50; ++i) {
         FibonacciCalculator::calculate(i);
@@ -76,18 +76,6 @@ void test_performance() {
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     std::cout << "OK (" << duration.count() << " ms)" << std::endl;
-}
-
-// Тесты через запуск программы с аргументами командной строки
-void test_command_line() {
-    std::cout << "Test 7: Command line arguments... ";
-    
-    // Тест с аргументом 10
-    std::string cmd = "./fibonacci 10";
-    int result = system(cmd.c_str());
-    assert(result == 0);
-    
-    std::cout << "OK" << std::endl;
 }
 
 int main() {
@@ -104,9 +92,9 @@ int main() {
     test_performance();
     
     std::cout << std::endl;
-    std::cout << "=================================" << std::endl;
-    std::cout << "  Все тесты пройдены успешно!" << std::endl;
-    std::cout << "=================================" << std::endl;
+    std::cout << "========================================" << std::endl;
+    std::cout << "  ✅ Все тесты пройдены успешно!" << std::endl;
+    std::cout << "========================================" << std::endl;
     
     return 0;
 }
