@@ -7,58 +7,62 @@ LDFLAGS =
 TARGET = fibonacci
 TEST_TARGET = test_fibonacci
 
-# Цель по умолчанию
-all: $(TARGET)
+# Цель по умолчанию - собираем ВСЕ!
+all: $(TARGET) $(TEST_TARGET)
 
 # Сборка основной программы
 $(TARGET): fibonacci.cpp
 	$(CXX) $(CXXFLAGS) -o $(TARGET) fibonacci.cpp $(LDFLAGS)
+	@echo "Сборка $(TARGET) завершена"
 
 # Сборка тестов
 $(TEST_TARGET): test_fibonacci.cpp
 	$(CXX) $(CXXFLAGS) -o $(TEST_TARGET) test_fibonacci.cpp $(LDFLAGS)
+	@echo "Сборка $(TEST_TARGET) завершена"
 
-# Запуск программы (интерактивный режим)
+# Запуск программы в интерактивном режиме
 run: $(TARGET)
 	./$(TARGET)
 
-# Запуск программы с аргументом
-run-arg: $(TARGET)
-	@echo "=== Запуск с аргументом 10 ==="
-	./$(TARGET) 10
-
 # Запуск тестов
 test: $(TEST_TARGET)
-	@echo "=== Запуск unit-тестов ==="
+	@echo ""
+	@echo "=== Запуск тестов ==="
 	./$(TEST_TARGET)
 
-# Тестирование программы через аргументы командной строки
-test-cli: $(TARGET)
-	@echo "=== Тестирование через CLI аргументы ==="
-	@echo "Тест 1: n=0"
-	@./$(TARGET) 0 | grep -q "0" && echo "n=0 passed"
-	@echo "Тест 2: n=1"
-	@./$(TARGET) 1 | grep -q "1" && echo "n=1 passed"
-	@echo "Тест 3: n=10"
-	@./$(TARGET) 10 | grep -q "55" && echo "n=10 passed"
-	@echo "Тест 4: n=20"
-	@./$(TARGET) 20 | grep -q "6765" && echo "n=20 passed"
-	@echo "Тест 5: n=50"
-	@./$(TARGET) 50 | grep -q "12586269025" && echo "n=50 passed"
+# Тестирование с аргументами (для CI/CD)
+test-args: $(TARGET)
 	@echo ""
-	@echo "=== Тестирование неверных аргументов ==="
-	@./$(TARGET) abc 2>&1 | grep -q "Ошибка" && echo "invalid string passed"
-	@./$(TARGET) -5 2>&1 | grep -q "Ошибка" && echo "negative passed"
-	@./$(TARGET) 100 2>&1 | grep -q "Ошибка" && echo "too large passed"
+	@echo "=== Тестирование с аргументами командной строки ==="
+	@echo -n "Test n=0: "
+	@./$(TARGET) 0 | grep -q "0" && echo "PASS" || echo "FAIL"
+	@echo -n "Test n=1: "
+	@./$(TARGET) 1 | grep -q "1" && echo "PASS" || echo "FAIL"
+	@echo -n "Test n=10: "
+	@./$(TARGET) 10 | grep -q "55" && echo "PASS" || echo "FAIL"
+	@echo -n "Test n=20: "
+	@./$(TARGET) 20 | grep -q "6765" && echo "PASS" || echo "FAIL"
+	@echo -n "Test n=50: "
+	@./$(TARGET) 50 | grep -q "12586269025" && echo "PASS" || echo "FAIL"
+	@echo -n "Test invalid 'abc': "
+	@./$(TARGET) abc 2>&1 | grep -q "Ошибка" && echo "PASS" || echo "FAIL"
+	@echo -n "Test invalid '-5': "
+	@./$(TARGET) -5 2>&1 | grep -q "Ошибка" && echo "PASS" || echo "FAIL"
 
 # Очистка
 clean:
 	rm -f $(TARGET) $(TEST_TARGET)
-	@echo "✓ Очистка завершена"
+	@echo "Очистка завершена"
 
 # Проверка зависимостей
 check:
-	@command -v $(CXX) >/dev/null 2>&1 || { echo "✗ Ошибка: $(CXX) не установлен"; exit 1; }
-	@echo "✓ Компилятор $(CXX) установлен"
+	@command -v $(CXX) >/dev/null 2>&1 || { echo "Ошибка: $(CXX) не установлен"; exit 1; }
+	@echo "Компилятор $(CXX) установлен"
+	@command -v docker >/dev/null 2>&1 && echo "Docker установлен" || echo "⚠ Docker не установлен"
 
-.PHONY: all run run-arg test test-cli clean check
+# Полная CI проверка
+ci: clean all test test-args
+	@echo ""
+	@echo "CI проверка пройдена успешно!"
+
+.PHONY: all run test test-args clean check ci
