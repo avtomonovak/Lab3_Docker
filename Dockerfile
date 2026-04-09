@@ -7,9 +7,14 @@ RUN apt-get update && apt-get install -y make && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /build
 
+# Копируем ТОЛЬКО нужные для сборки файлы
 COPY fibonacci.cpp makefile ./
 
-RUN make clean && make
+# Собираем ТОЛЬКО основную программу (не тесты!)
+RUN make clean && make fibonacci
+
+# Проверка, что файл создался
+RUN ls -la fibonacci
 
 # Этап 2: Финальный образ
 FROM debian:bookworm-slim
