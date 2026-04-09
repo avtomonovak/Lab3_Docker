@@ -42,20 +42,22 @@ jobs:
     - name: Clean previous builds
       run: make clean
     
-    - name: Build application
+    - name: Build application and tests
       run: |
         make all
         echo "Build completed successfully"
     
-    - name: Verify binary
+    - name: Verify binaries
       run: |
+        echo "=== Checking binaries ==="
         ls -la fibonacci test_fibonacci
         file fibonacci
+        file test_fibonacci
     
-    - name: Upload build artifact
+    - name: Upload build artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: fibonacci-binary
+        name: fibonacci-binaries
         path: |
           fibonacci
           test_fibonacci
@@ -79,16 +81,17 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y build-essential g++ make
     
-    - name: Download build artifact
+    - name: Download build artifacts
       uses: actions/download-artifact@v4
       with:
-        name: fibonacci-binary
+        name: fibonacci-binaries
         path: ./
     
     - name: Make binaries executable
       run: |
         chmod +x fibonacci
         chmod +x test_fibonacci
+        ls -la fibonacci test_fibonacci
     
     - name: Run unit tests
       run: |
@@ -206,7 +209,7 @@ jobs:
   # СТАДИЯ 4: DEPLOY - Публикация в GHCR
   # ============================================
   deploy:
-    name: 🚀 Deploy to GHCR
+    name: Deploy to GHCR
     runs-on: self-hosted
     needs: package
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
@@ -256,7 +259,7 @@ jobs:
         docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
         
         echo -n "Test n=15: "
-        docker run --rm ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest 15 | grep -q "610" && echo "PASS" || echo FAIL"
+        docker run --rm ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest 15 | grep -q "610" && echo "PASS" || echo "FAIL"
         
         echo "Deployed image works correctly"
     
