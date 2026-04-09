@@ -267,7 +267,7 @@ jobs:
   # СТАДИЯ 4: DEPLOY - Публикация в GHCR
   # ============================================
   deploy:
-    name: 🚀 Deploy to GHCR
+    name: Deploy to GHCR
     runs-on: self-hosted
     needs: package
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
