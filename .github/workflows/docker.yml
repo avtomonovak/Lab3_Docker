@@ -14,7 +14,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: avtomonovak/Lab3_Docker
+  IMAGE_NAME: avtomonovak/lab3_docker
   DOCKER_BUILDKIT: 1
 
 jobs:
