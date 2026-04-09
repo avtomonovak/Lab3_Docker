@@ -18,7 +18,7 @@ env:
   DOCKER_BUILDKIT: 1
 
 jobs:
-  # ============================================
+    # ============================================
   # СТАДИЯ 1: BUILD - Сборка программы
   # ============================================
   build:
@@ -42,9 +42,9 @@ jobs:
     - name: Clean previous builds
       run: make clean
     
-    - name: Build application and tests
+    - name: Build all (including tests for CI)
       run: |
-        make all
+        make all-tests
         echo "Build completed successfully"
     
     - name: Verify binaries
