@@ -48,39 +48,48 @@ public:
     }
 };
 
-/**
- * Вычисляет число Фибоначчи и выводит результат
- * Возвращает 0 при успехе, 1 при ошибке
- */
+// Функция для режима с аргументами командной строки
 int runWithArgs(int argc, char* argv[]) {
-    int n;
+    if (argc != 2) return 0;  // не наш случай
     
-    // Если передан аргумент командной строки - используем его
-    if (argc > 1) {
-        std::string arg = argv[1];
-        if (FibonacciCalculator::isValidNumber(arg, n)) {
-            if (n >= 0 && n <= 50) {
-                long long result = FibonacciCalculator::calculate(n);
-                std::cout << result << std::endl;
-                return 0;
-            } else {
-                std::cerr << "Ошибка: Число должно быть в диапазоне от 0 до 50!" << std::endl;
-                return 1;
-            }
-        } else {
-            std::cerr << "Ошибка: Введите целое неотрицательное число!" << std::endl;
+    std::string arg = argv[1];
+    int n = 0;  // ИНИЦИАЛИЗИРУЕМ переменную!
+    
+    if (FibonacciCalculator::isValidNumber(arg, n)) {
+        try {
+            auto start = std::chrono::high_resolution_clock::now();
+            long long result = FibonacciCalculator::calculate(n);
+            auto end = std::chrono::high_resolution_clock::now();
+            auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+            
+            std::cout << result << std::endl;
+            
+        } catch (const std::exception& e) {
+            std::cerr << "Ошибка: " << e.what() << std::endl;
             return 1;
         }
+    } else {
+        std::cerr << "Ошибка: '" << arg << "' не является целым неотрицательным числом" << std::endl;
+        return 1;
     }
+    return 0;
+}
+
+// Интерактивный режим
+int runInteractive() {
+    std::cout << "========================================" << std::endl;
+    std::cout << "  Программа вычисления чисел Фибоначчи" << std::endl;
+    std::cout << "  Вариант 1: Последовательность Фибоначчи" << std::endl;
+    std::cout << "========================================" << std::endl;
+    std::cout << std::endl;
     
-    // Интерактивный режим (для пользователя)
     std::string input;
+    int n = 0;  // ИНИЦИАЛИЗИРУЕМ переменную!
     
     while (true) {
         std::cout << "Введите целое неотрицательное число n (0-50): ";
         
         if (!std::getline(std::cin, input)) {
-            // Если достигнут конец ввода (например, при перенаправлении)
             break;
         }
         
@@ -89,42 +98,48 @@ int runWithArgs(int argc, char* argv[]) {
             continue;
         }
         
+        if (input == "q" || input == "quit" || input == "exit") {
+            std::cout << "До свидания!" << std::endl;
+            break;
+        }
+        
         if (FibonacciCalculator::isValidNumber(input, n)) {
             if (n >= 0 && n <= 50) {
-                break;
+                try {
+                    auto start = std::chrono::high_resolution_clock::now();
+                    long long result = FibonacciCalculator::calculate(n);
+                    auto end = std::chrono::high_resolution_clock::now();
+                    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+                    
+                    std::cout << "Fibonacci(" << n << ") = " << result << std::endl;
+                    std::cout << "Время: " << duration.count() << " мкс" << std::endl;
+                } catch (const std::exception& e) {
+                    std::cerr << "Ошибка: " << e.what() << std::endl;
+                }
             } else {
                 std::cout << "Ошибка: Число должно быть в диапазоне от 0 до 50!" << std::endl;
             }
         } else {
             std::cout << "Ошибка: Введите целое неотрицательное число!" << std::endl;
         }
-    }
-    
-    try {
-        auto start = std::chrono::high_resolution_clock::now();
-        long long result = FibonacciCalculator::calculate(n);
-        auto end = std::chrono::high_resolution_clock::now();
-        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-        
         std::cout << std::endl;
-        std::cout << "Результат вычислений:" << std::endl;
-        std::cout << "  Fibonacci(" << n << ") = " << result << std::endl;
-        std::cout << "  Время вычисления: " << duration.count() << " микросекунд" << std::endl;
-        
-    } catch (const std::exception& e) {
-        std::cerr << "Ошибка: " << e.what() << std::endl;
-        return 1;
     }
     
     return 0;
 }
 
 int main(int argc, char* argv[]) {
-    std::cout << "========================================" << std::endl;
-    std::cout << "  Программа вычисления чисел Фибоначчи" << std::endl;
-    std::cout << "  Вариант 1: Последовательность Фибоначчи" << std::endl;
-    std::cout << "========================================" << std::endl;
-    std::cout << std::endl;
+    // Режим 1: Аргумент командной строки (для CI/CD)
+    if (argc == 2) {
+        return runWithArgs(argc, argv);
+    }
     
-    return runWithArgs(argc, argv);
+    // Режим 2: Интерактивный режим
+    if (argc > 2) {
+        std::cout << "Использование: " << argv[0] << " [n]" << std::endl;
+        std::cout << "  n - вычислить n-е число Фибоначчи" << std::endl;
+        return 1;
+    }
+    
+    return runInteractive();
 }
