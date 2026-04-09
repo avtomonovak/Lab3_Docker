@@ -23,7 +23,7 @@ jobs:
   # СТАДИЯ 1: BUILD - Сборка программы
   # ============================================
   build:
-    name: 🔨 Build
+    name: Build
     runs-on: self-hosted
     
     steps:
@@ -46,7 +46,7 @@ jobs:
     - name: Build application
       run: |
         make all
-        echo "✅ Build completed successfully"
+        echo "Build completed successfully"
     
     - name: Verify binary
       run: |
@@ -67,7 +67,7 @@ jobs:
   # СТАДИЯ 2: TEST - Запуск тестов
   # ============================================
   test:
-    name: 🧪 Test
+    name: Test
     runs-on: self-hosted
     needs: build
     
@@ -101,34 +101,34 @@ jobs:
         echo "=== Testing with command line arguments ==="
         
         echo -n "Test n=0: "
-        ./fibonacci 0 | grep -q "0" && echo "✅ PASS" || echo "❌ FAIL"
+        ./fibonacci 0 | grep -q "0" && echo "PASS" || echo "FAIL"
         
         echo -n "Test n=1: "
-        ./fibonacci 1 | grep -q "1" && echo "✅ PASS" || echo "❌ FAIL"
+        ./fibonacci 1 | grep -q "1" && echo "PASS" || echo "FAIL"
         
         echo -n "Test n=10: "
-        ./fibonacci 10 | grep -q "55" && echo "✅ PASS" || echo "❌ FAIL"
+        ./fibonacci 10 | grep -q "55" && echo "PASS" || echo "FAIL"
         
         echo -n "Test n=20: "
-        ./fibonacci 20 | grep -q "6765" && echo "✅ PASS" || echo "❌ FAIL"
+        ./fibonacci 20 | grep -q "6765" && echo "PASS" || echo "FAIL"
         
         echo -n "Test n=50: "
-        ./fibonacci 50 | grep -q "12586269025" && echo "✅ PASS" || echo "❌ FAIL"
+        ./fibonacci 50 | grep -q "12586269025" && echo "PASS" || echo "FAIL"
         
         echo ""
         echo "=== Testing invalid inputs ==="
         
         echo -n "Test invalid 'abc': "
-        ./fibonacci abc 2>&1 | grep -q "Ошибка" && echo "✅ PASS" || echo "❌ FAIL"
+        ./fibonacci abc 2>&1 | grep -q "Ошибка" && echo "PASS" || echo "FAIL"
         
         echo -n "Test invalid '-5': "
-        ./fibonacci -5 2>&1 | grep -q "Ошибка" && echo "✅ PASS" || echo "❌ FAIL"
+        ./fibonacci -5 2>&1 | grep -q "Ошибка" && echo "PASS" || echo "FAIL"
 
   # ============================================
   # СТАДИЯ 3: PACKAGE - Сборка Docker образа
   # ============================================
   package:
-    name: 📦 Package
+    name: Package
     runs-on: self-hosted
     needs: test
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
@@ -192,12 +192,12 @@ jobs:
         FOUND_TAG=""
         if docker images --format "{{.Repository}}:{{.Tag}}" | grep -q "^$FULL_IMAGE_NAME:$COMMIT_SHA$"; then
           FOUND_TAG="$FULL_IMAGE_NAME:$COMMIT_SHA"
-          echo "✅ Found image with commit tag"
+          echo "Found image with commit tag"
         elif docker images --format "{{.Repository}}:{{.Tag}}" | grep -q "^$FULL_IMAGE_NAME:latest$"; then
           FOUND_TAG="$FULL_IMAGE_NAME:latest"
-          echo "✅ Found image with latest tag"
+          echo "Found image with latest tag"
         else
-          echo "❌ Image not found!"
+          echo "Image not found!"
           echo "Available images with 'lab3_docker':"
           docker images | grep "lab3_docker" || echo "  (none found)"
           exit 1
@@ -207,9 +207,9 @@ jobs:
         echo "Test 1: Run with valid input (n=10)"
         RESULT=$(docker run --rm $FOUND_TAG 10)
         if [ "$RESULT" == "55" ]; then
-          echo "✅ PASS (got: $RESULT)"
+          echo "PASS (got: $RESULT)"
         else
-          echo "❌ FAIL (expected: 55, got: $RESULT)"
+          echo "FAIL (expected: 55, got: $RESULT)"
           exit 1
         fi
         
@@ -217,18 +217,18 @@ jobs:
         echo "Test 2: Run with valid input (n=20)"
         RESULT=$(docker run --rm $FOUND_TAG 20)
         if [ "$RESULT" == "6765" ]; then
-          echo "✅ PASS (got: $RESULT)"
+          echo "PASS (got: $RESULT)"
         else
-          echo "❌ FAIL (expected: 6765, got: $RESULT)"
+          echo "FAIL (expected: 6765, got: $RESULT)"
           exit 1
         fi
         
         echo ""
         echo "Test 3: Run with invalid input (abc)"
         if docker run --rm $FOUND_TAG abc 2>&1 | grep -q "Ошибка"; then
-          echo "✅ PASS"
+          echo "PASS"
         else
-          echo "❌ FAIL"
+          echo "FAIL"
           exit 1
         fi
         
@@ -237,7 +237,7 @@ jobs:
         docker images $FOUND_TAG --format "Size: {{.Size}}"
         
         echo ""
-        echo "✅ All Docker image tests passed"
+        echo "All Docker image tests passed"
     
     - name: Save Docker image as artifact
       run: |
@@ -252,7 +252,7 @@ jobs:
         fi
         
         gzip -9 fibonacci-image.tar
-        echo "✅ Docker image saved as fibonacci-image.tar.gz"
+        echo "Docker image saved as fibonacci-image.tar.gz"
         ls -lh fibonacci-image.tar.gz
     
     - name: Upload Docker image artifact
@@ -322,29 +322,29 @@ jobs:
         echo -n "Test n=15: "
         RESULT=$(docker run --rm $FULL_IMAGE_NAME:latest 15)
         if [ "$RESULT" == "610" ]; then
-          echo "✅ PASS (got: $RESULT)"
+          echo "PASS (got: $RESULT)"
         else
-          echo "❌ FAIL (expected: 610, got: $RESULT)"
+          echo "FAIL (expected: 610, got: $RESULT)"
           exit 1
         fi
         
         echo -n "Test n=30: "
         RESULT=$(docker run --rm $FULL_IMAGE_NAME:latest 30)
         if [ "$RESULT" == "832040" ]; then
-          echo "✅ PASS (got: $RESULT)"
+          echo "PASS (got: $RESULT)"
         else
-          echo "❌ FAIL (expected: 832040, got: $RESULT)"
+          echo "FAIL (expected: 832040, got: $RESULT)"
           exit 1
         fi
         
         echo ""
-        echo "✅ Deployed image works correctly"
+        echo "Deployed image works correctly"
     
     - name: Create deployment summary
       run: |
         FULL_IMAGE_NAME="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
         cat >> $GITHUB_STEP_SUMMARY << EOF
-        ## 🚀 Deployment Successful!
+        ## Deployment Successful!
         
         | Метка | Значение |
         |-------|----------|
